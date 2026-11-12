@@ -1,0 +1,77 @@
+HOW AND WHERE THIS PROJECT USES OBJECT-ORIENTED PROGRAMMING (OOP)
+==================================================================
+Project: The Grand Aurelia - Room Service (Customer app + Staff app), Java Swing.
+
+THE BIG IDEA
+  Instead of one long program, the hotel is split into OBJECTS. Each object is a small class that
+  keeps its own data and its own rules:  Item, Order, Cart, MenuRepository, ShopService, Theme ...
+  The screens (CustomerApp, StaffApp) do not contain the rules; they ask the objects.
+  Both apps are separate programs but reuse the SAME classes and share the same data files.
+
+PACKAGES (folders in src/hotel)
+  model  - the things in the hotel:   Item, Order, OrderLine, Cart, Category, OrderStatus, Entity
+  data   - saving and rules:          Repository, FileRepository, MenuRepository, OrderRepository,
+                                      ShopService, ImageLibrary, StorageLock, ShopException
+  ui     - reusable screen parts:     BaseApp, MenuCard, CartDialog, OrderCard, StaffOrderCard,
+                                      ItemEditorRow, AddItemForm, Stepper, ItemPicture, UiFactory, Theme
+  app    - the two programs:          CustomerApp, StaffApp, AppContext
+
+THE FOUR PILLARS - WITH EXAMPLES FROM THE CODE
+
+1) ENCAPSULATION  (hide the data, protect it with methods)
+   - model/Item.java: name, price and stock are PRIVATE. You can only change them through
+     setPrice() and setStock(), which refuse negative numbers. reduceStock() refuses to take more
+     than we have, so stock can never go below zero.
+   - model/Order.java: the list of lines is private; getLines() gives a read-only view.
+   - model/Cart.java: the cart keeps its map private and owns the rules: add() never goes above
+     stock, total() calculates the price, syncWith() removes sold-out items.
+   WHY: other classes cannot break the rules by accident, and the rule is written in ONE place.
+
+2) INHERITANCE  (a class reuses another class's code with "extends")
+   - ui/BaseApp.java is the parent of CustomerApp and StaffApp. The header bar, nav buttons,
+     scroll areas and the 3-second refresh are written once; each app adds only what is different.
+   - data/FileRepository.java is the parent of MenuRepository and OrderRepository. Reading,
+     writing, locking, add/update/remove are written once; the children only say how one Item or
+     one Order becomes a line of text.
+   - ui/StaffOrderCard extends OrderCard; Stepper and ItemPicture extend JPanel; the apps extend JFrame.
+
+3) POLYMORPHISM  (same call, different behavior depending on the object)
+   - OrderCard.showsProgress() and footerText() are OVERRIDDEN in StaffOrderCard. The customer's
+     card shows a progress bar; the staff's card shows a status picker instead - same base code.
+   - FileRepository calls fromFields()/toFields(); each child answers differently.
+   - BaseApp.launch() calls buildNav(), buildBody(), refresh(); CustomerApp and StaffApp each answer
+     differently (this is called the TEMPLATE METHOD pattern).
+
+4) ABSTRACTION  (say WHAT, hide HOW)
+   - data/Repository.java is an INTERFACE: find, add, update, remove. ShopService only knows this
+     interface. The data is stored in text files today; it could be a database tomorrow and the
+     screens would not change.
+   - model/Entity.java is an interface ("has an id") used by Item and Order.
+   - ui/BaseApp is an ABSTRACT class: it cannot be created on its own, it forces children to
+     implement windowTitle(), buildNav(), buildBody(), refresh().
+   - ShopService is a simple front door: the screens call placeOrder() and do not know about files.
+
+OTHER OOP IDEAS USED
+   - COMPOSITION ("has a"): an Order has OrderLines and an OrderStatus; ShopService has two Repositories.
+   - ENUMS: Category and OrderStatus replace loose strings, so a typo cannot create a wrong status.
+   - DEPENDENCY INJECTION: parts are passed in through constructors (ShopService(menu, orders, lock,
+     images)). app/AppContext is the one place that creates and connects everything.
+   - SINGLE RESPONSIBILITY: each class has one job (Cart = cart rules, ImageLibrary = pictures,
+     StorageLock = safe file access, Theme = colors/text).
+   - CUSTOM EXCEPTION: ShopException carries a friendly message ("Sorry, Iron is no longer available...").
+
+FOLLOW ONE ACTION THROUGH THE OBJECTS: "Guest places an order"
+   1. MenuCard (ui)       - guest presses Add          -> CustomerApp calls Cart.add(item, qty)
+   2. Cart (model)        - limits the quantity to the stock
+   3. CartDialog (ui)     - shows unit price, quantity, totals, then calls ShopService.placeOrder()
+   4. ShopService (data)  - checks room + stock, calls Item.reduceStock(), builds an Order with OrderLines
+   5. MenuRepository / OrderRepository (data, inherit FileRepository) - save to menu.txt / orders.txt
+   6. StaffApp's refresh() notices orders.txt changed -> shows a StaffOrderCard
+   7. Staff presses "Update status" -> ShopService.changeStatus() -> Order.setStatus()
+   8. CustomerApp's refresh() -> OrderCard shows the new progress
+
+SUGGESTED SENTENCES FOR YOUR REPORT
+   "We used OOP to split the hotel system into classes that each manage their own data and rules.
+    Encapsulation protects values like price and stock, inheritance lets the Customer and Staff apps
+    share one BaseApp, polymorphism lets the same order card behave differently for guests and
+    staff, and abstraction (the Repository interface) hides how the data is stored."
